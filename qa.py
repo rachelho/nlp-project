@@ -90,13 +90,15 @@ class Story():
     
     def __init__(self, story):
         
-        self.story = story
+        self.story = story.strip()
         self.sentences = sent_tokenize(story)
-        
+        self.pos = []
+        self.lemma = []
+        lemmatizer = WordNetLemmatizer()
         
         
         for token in self.sentences:
-            # Is it the headline?
+            # Grab the story information
             if token.startswith("HEADLINE: "):
                 lines = token.split('\n')
                 for line in lines:
@@ -109,15 +111,55 @@ class Story():
                     elif line.startswith("STORYID: "):
                         self.storyID = line.lstrip("STORYID: ")
                     
-                    elif line.startswith("TEXT:") or line.startswith(''):
-                        break
-                    
+                    elif line.startswith("TEXT:"):
+                         break
+            
+            else:
+                break
+    
+        # Remove the Headline, Date, etc. from the first sentence (121 - 140)
+        firstSentence = word_tokenize(self.sentences[0])
+        i = 0
+        
+        # Find the location of the first word after "TEXT:"
+        for token in firstSentence:
+            i += 1
+            if token.startswith("TEXT"):
+                break
+        
+        self.sentences[0] = '' 
+        i += 1
+        
+        # Now append the sentence together
+        while i < len(firstSentence):
+            if i + 2 < len(firstSentence):
+                self.sentences[0] += firstSentence[i] + ' '
+                i += 1
+            else:
+                self.sentences[0] += firstSentence[i]
+                i += 1
+
+        # Get the POS for each word of each sentence in the story and store it as a list of tuples
+        for sentence in self.sentences:
+            words = word_tokenize(sentence)
+            pos = nltk.pos_tag(words)
+            posList = []
+            for tag in pos:
+                posList.append(tag)
+            self.pos.append(posList)
+        
+        # Lemmatize each word in the sentence and store it as a list 
+        for sentence in self.sentences:
+            words = word_tokenize(sentence)
+            lemmaList = []
+            
+            for word in words:
+                lemmaWord = lemmatizer.lemmatize(word)
+                lemmaList.append(lemmaWord)
+            
+            self.lemma.append(lemmaList)
+        
         return
-            # if token.startswith(start) and token.endswith(end):
-            #     # Get rid of identifiers 
-            #     self.target = token.lstrip(start).rstrip(end)
-            #     return
-            # self.spot += 1
             
 #%% Functions
 def ReadFile(file, type):
@@ -155,5 +197,6 @@ def ReadFile(file, type):
         questions.append(type(story))
             
 #%% Main
-story = sys.argv[1]
-ReadFile(story, Story)
+
+for story in stories:
+    ReadFile(story, Story)
