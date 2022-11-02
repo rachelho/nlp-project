@@ -142,7 +142,7 @@ class Story():
         # Get the POS for each word of each sentence in the story and store it as a list of tuples
         for sentence in self.sentences:
             words = word_tokenize(sentence)
-            pos = nltk.pos_tag(words)
+            pos = pos_tag(words)
             posList = []
             for tag in pos:
                 posList.append(tag)
