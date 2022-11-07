@@ -3,14 +3,15 @@ import csv
 import nltk
 import re
 import spacy
+#import en_core_we_sm
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
 from nltk import pos_tag
 from nltk.stem import WordNetLemmatizer
-from spacy import displacy
 
 
-NER = spacy.load("en_core_web_trf")
+
+NER = spacy.load("en_core_web_lg")
 #%% Classes
 class Story():
         
@@ -71,8 +72,8 @@ class Story():
             for sentence in self.sentences:
                 doc = NER(sentence)
                 nesList = list(doc.ents)
+                
                 ner = []
-                print(nesList)
                 for ent in nesList:
                     ner.append(ent.text)
                     ner.append(ent.label_)
@@ -215,29 +216,65 @@ def main():
         #print(questions)
         
         ReadStoryFile(storyFile, Story, stories)
-       
-        print('stop')
-        # bestSentenceMatch = {}
-        # #print(stories[id])
-        # for i in range(0, len(questions[id])):
-        #     bestSentenceMatchCount = 0
-        #     qid = str(id[7:])+"-"+str(i+1)
-        #     #print("QUESTION " + qid + " "+ str(questions[id][i]))
+        
+        bestSentenceMatch = []
+        bestSentenceLocation = []
+        #print(stories[id])
+        for i in range(0, len(questions[id])):
+            bestSentenceMatchCount = 0
+            qid = str(id[len(path):])+"-"+str(i+1)
+            #print("QUESTION " + qid + " "+ str(questions[id][i]))
+            qlist = []
+            for word in questions[id][i]:
+                qlist.append(word[0])
+                
+            for story in stories:
+                if story.storyID == str(id[len(path):]):
+                    location = 0
+                    for sentence in story.lemma:
 
-        #     for j in range(0, len(stories[id])):
-        #         overlap = list(set(questions[id][i]) & set(stories[id][j]))
-        #         #print("OVERLAP: " + str(overlap))
-        #         if len(overlap) >= bestSentenceMatchCount:
-        #             bestSentenceMatchCount = len(overlap)
-        #             bestSentenceMatch[qid] = stories[id][j]
-        #     print("MATCH: " +str(questions[id][i]) + "\n answerd by " + str(bestSentenceMatch[qid]))
-        #print(bestSentenceMatch)
-        # with open(responseFile) as rf:
-        #     writer = csv.writer(responseFile)
-        #     for q in range(len(questions)):
-        #         for a in range(answers):
-        #             writer.writerow("QuestionID: " + id + a)
-        #             writer.writerow("Answer: " + answers[a])
+                        overlap = list(set(qlist) & set(sentence))
+                        print(overlap)
+                        
+                        if len(overlap) == bestSentenceMatchCount:
+                            bestSentenceMatchCount = len(overlap)
+                            bestSentenceMatch.append(sentence)
+                            bestSentenceLocation.append(location)
+                            
+                        if len(overlap) > bestSentenceMatchCount:
+                            bestSentenceMatchCount = len(overlap)
+                            bestSentenceMatch.clear()
+                            bestSentenceLocation.clear()
+                            bestSentenceMatch.append(sentence)
+                            bestSentenceLocation.append(location)
+                            
+                        location += 1
+            
+                
+                else:
+                    continue
+                
+                print("MATCH: " +str(questions[id][i]) + "\n answerd by " + str(bestSentenceMatch))
+            
+            for j in range(0, len(stories[id])):
+                overlap = list(set(questions[id][i]) & set(stories[id][j]))
+                #print("OVERLAP: " + str(overlap))
+                if len(overlap) == bestSentenceMatchCount:
+                    bestSentenceMatchCount = len(overlap)
+                    bestSentenceMatch.append(sentence)
+                if len(overlap) > bestSentenceMatch:
+                    bestSentenceMatchCount = len(overlap)
+                    bestSentenceMatch[qid] = sentence
+                    
+                    
+            print("MATCH: " +str(questions[id][i]) + "\n answerd by " + str(bestSentenceMatch[qid]))
+        print(bestSentenceMatch)
+        with open(responseFile) as rf:
+            writer = csv.writer(responseFile)
+            for q in range(len(questions)):
+                for a in range(answers):
+                    writer.writerow("QuestionID: " + id + a)
+                    writer.writerow("Answer: " + answers[a])
             
 if __name__ == "__main__":
     main()
