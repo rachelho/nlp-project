@@ -276,22 +276,35 @@ def RemoveFrequencyOne(values):
 def Overlap(story, question, bestSentenceMatch, bestSentenceLocation):
     '''Takes a story and the question and records the overlap between each sentence in the story and the question'''
     location = 0 # Tells us which element in the story.sentences
-    for sentence in story.lemma:
+    for j in range(0, len(story.lemma)):
+        sentence = story.lemma[j]
+        so = []
         # Get the words in common between both sentence and question
         overlap = list(set(question.lemma) & set(sentence))
-        
+        score = len(overlap)
+        #record index of matching lemmatized word
+        for i in range(0, len(sentence)):
+            if sentence[i] in overlap:
+                so.append(i)
+        for idx in so:
+            #exrea points if verb
+            if story.pos[j][idx][1][0] == 'V':
+                score+=1
+
         # Append the overlap to the dictionary
-        if len(overlap) in bestSentenceMatch.keys():
-            bestSentenceMatch[len(overlap)].append(sentence)
-            bestSentenceLocation[len(overlap)].append(location)
+        if score in bestSentenceMatch.keys():
+            bestSentenceMatch[score].append(sentence)
+            bestSentenceLocation[score].append(j)
         
         # Add the overlap to the dictionary
         else:
-            bestSentenceMatch[len(overlap)] = [sentence]
-            bestSentenceLocation[len(overlap)] = [location]
+            bestSentenceMatch[score] = [sentence]
+            bestSentenceLocation[score] = [j]
         
-        location += 1
-    
+        #location += 1
+        # print(question.question)
+        # print(story.sentences[j])
+        # print(score)
     return
 
 def MatchingNER(story, question):
@@ -300,13 +313,13 @@ def MatchingNER(story, question):
     questionType = question.type
     possibleSentences = set()
     
-    for nerType in story.ner:
-        for ner in nerType:
+    for i in range(0, len(story.ner)):
+        for ner in story.ner[i]:
             if ner[1] in questionType:
-                possibleSentences.add(location)
-        location += 1
+                possibleSentences.add(i)
+        #location += 1
 
-    return
+    return possibleSentences
 
 def FindAnswer(question, story, bestSentenceLocation):
     '''Find the best answer based on overlap and type of question. Then print the answer to the output file'''
@@ -375,17 +388,17 @@ def WriteToFile(question, questionNERTag, sentence, story):
     line3 = "Difficulty: " + str(question.difficulty)
     line4 = "Answer: " + answer.strip()
     line5 = "Sentence w/ answer: " +  story.sentences[sentence] + '\n'
-    
+
     #redirect print to answer file, be sure to remove this if you want to print other things
     fileName = str(story.storyID) + '.answers'
     writeOrAppend = ''
  
-    with open(fileName, 'a') as sys.stdout:
-        print(line1)
-        print(line2)
-        print(line3)
-        print(line4)
-        print(line5)
+    # with open(fileName, 'a') as sys.stdout:
+    print(line1)
+    print(line2)
+    print(line3)
+    print(line4)
+    print(line5)
     return
 #%% Main
 def main():
@@ -413,14 +426,13 @@ def main():
     bestSentenceMatch = {} # Just for spot checking at this point
     bestSentenceLocation = {}
     Location = 0
-    
+    matchingNer = set{}
     for question in questions:
         for subQuestion in question.subQuestions:
             for story in stories:
                 if story.storyID == question.id:
                     Overlap(story, subQuestion, bestSentenceMatch, bestSentenceLocation)   # Not working well like you said
-                    MatchingNER(story, subQuestion)
-
+                    matchingNer = MatchingNER(story, subQuestion)
                     break
                                        
             FindAnswer(subQuestion, story, bestSentenceLocation)
