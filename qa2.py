@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Nov  5 20:47:29 2022
-
-@author: toryl
+@author(s): Tory Leavitt and Rachel Ho
 """
 
 import sys
@@ -202,12 +200,13 @@ class SubQuestion():
                 posList.append(tag)
             
         # Lists of words to help identify the type of answer we are looking for
-        whoList = {'who', 'person', 'organization', 'team'}
+        whoList = {'who', 'person', 'organization', 'team', 'company', 'business'}
         whatList = {'what'}
-        whereList = {'where', 'located', 'location'}
-        whenList = {'when', 'time', 'date'}
+        whereList = {'where', 'located', 'location', 'site', 'venue', 'locale'}
+        whenList = {'when', 'time', 'date', 'month', 'year'}
         whyList = {'why'}
-        howList = {'how', 'big', 'small', 'much', 'cost', 'far'}
+        quantityList = {'big', 'small', 'far', 'many', 'distance', 'capacity', 'length', 'tall'}
+        moneyList = {'much', 'cost', 'price', 'salary', 'budget', 'paid'}
             
         for word in words:
             # Lemmatize each word in the question for later comparisons in overlap
@@ -221,9 +220,12 @@ class SubQuestion():
                     
             elif word.lower() in whoList:
                 self.type.add("PERSON")
+                self.type.add("ORG")
                 
-            elif word.lower() in howList:
+            elif word.lower() in quantityList:
                 self.type.add('QUANTITY')
+            
+            elif word.lower() in moneyList:
                 self.type.add('MONEY')
                 
             elif word.lower() in whatList:
@@ -246,16 +248,22 @@ class SubQuestion():
 #%% Functions
 def ReadStoryFile(file, type, stories):
     '''takes a story file and parses it into a story object'''
-    text = open(file)
-    story = text.read()    
-    stories.append(type(story))
+    try: 
+        text = open(file)
+        story = text.read()    
+        stories.append(type(story))
+    except:
+        print("Unable to locate" + file)
     
 def ReadQuestionFile(file, type, questions):
     '''takes a question file and parses it into a question object'''
-    with open(file) as qfile:
-        questionsLines = qfile.readlines()
-    questions.append(type(questionsLines))
-
+    try:
+        with open(file) as qfile:
+            questionsLines = qfile.readlines()
+            questions.append(type(questionsLines))
+    except:
+        print("Unable to locate" + file)        
+        
 def ArgValidation(args):
     '''Validates that 1 and only 1 argument was passed through the command line'''
     if len(sys.argv) != 2:
@@ -273,12 +281,12 @@ def RemoveFrequencyOne(values):
 
     return frequency
 
-def Overlap(story, question, bestSentenceMatch, bestSentenceLocation):
+def Overlap(story, question, bestSentenceMatch, bestSentenceLocation, matchingNERSentences):
     '''Takes a story and the question and records the overlap between each sentence in the story and the question'''
     location = 0 # Tells us which element in the story.sentences
-    for sentence in story.lemma:
+    for sentence in matchingNERSentences:
         # Get the words in common between both sentence and question
-        overlap = list(set(question.lemma) & set(sentence))
+        overlap = list(set(question.lemma) & set(story.lemma[sentence]))
         
         # Append the overlap to the dictionary
         if len(overlap) in bestSentenceMatch.keys():
@@ -306,18 +314,18 @@ def MatchingNER(story, question):
                 possibleSentences.add(location)
         location += 1
 
-    return
+    return possibleSentences
 
-def FindAnswer(question, story, bestSentenceLocation):
+def FindAnswer(question, story, bestSentenceMatch):
     '''Find the best answer based on overlap and type of question. Then print the answer to the output file'''
     
     questionNERTag = list(question.type)
     validSentences = []
     foundSentence = False
     # Iterate though the overlaps, high to low, until we find the correct NER tag
-    while len(bestSentenceLocation) > 0:
-        highOverlap = max(bestSentenceLocation.keys()) # Get high overlap
-        toCheck = list(bestSentenceLocation[highOverlap]) # List of sentence locations with that overlap
+    while len(bestSentenceMatch) > 0:
+        highOverlap = max(bestSentenceMatch.keys()) # Get high overlap
+        toCheck = list(bestSentenceMatch[highOverlap]) # List of sentence locations with that overlap
         if foundSentence is False:
             for sentence in toCheck:
                 if len(story.ner[sentence]) > 0:
@@ -327,7 +335,7 @@ def FindAnswer(question, story, bestSentenceLocation):
                             if questionTag == sentenceTag[1]:
                                 validSentences.append(sentence)
                                 # foundSentence = True
-            bestSentenceLocation.pop(highOverlap)
+            bestSentenceMatch.pop(highOverlap)
         # Found a sentence in highOverlap
         else:
             break 
@@ -364,6 +372,9 @@ def WriteToFile(question, questionNERTag, sentence, story):
     # For now I am just print I will work on writing to file later
     answer = ''
     
+    
+    # If we look at the location of the tags within the sentence and if they are far apart we do not join them
+    # that might help narrow our answer down more
     if sentence != -1:
         for tag in story.ner[sentence]:
             if tag[1] in questionNERTag:
@@ -377,15 +388,22 @@ def WriteToFile(question, questionNERTag, sentence, story):
     line5 = "Sentence w/ answer: " +  story.sentences[sentence] + '\n'
     
     #redirect print to answer file, be sure to remove this if you want to print other things
-    fileName = str(story.storyID) + '.answers'
+    fileName = 'Soutions.response'
     writeOrAppend = ''
- 
-    with open(fileName, 'a') as sys.stdout:
-        print(line1)
-        print(line2)
-        print(line3)
-        print(line4)
-        print(line5)
+
+    # print(line1)
+    # print(line2)
+    # print(line3)
+    print(line4)
+    # print(line5)
+        
+    
+    # with open(fileName, 'a') as file:
+    #     file.writelines("QuestionID: " + str(qidClean) + '\n')
+    #     file.writelines("Answer: " + answer.strip() + '\n\n')
+
+    
+        
     return
 #%% Main
 def main():
@@ -418,12 +436,13 @@ def main():
         for subQuestion in question.subQuestions:
             for story in stories:
                 if story.storyID == question.id:
-                    Overlap(story, subQuestion, bestSentenceMatch, bestSentenceLocation)   # Not working well like you said
-                    MatchingNER(story, subQuestion)
-
+                    
+                    sentenceWNERMatch = MatchingNER(story, subQuestion)
+                    Overlap(story, subQuestion, bestSentenceMatch, bestSentenceLocation, sentenceWNERMatch)   # Not working well like you said
+                    
                     break
                                        
-            FindAnswer(subQuestion, story, bestSentenceLocation)
+            FindAnswer(subQuestion, story, bestSentenceMatch)
             bestSentenceLocation.clear()
             bestSentenceMatch.clear()
 

@@ -426,7 +426,7 @@ def main():
     bestSentenceMatch = {} # Just for spot checking at this point
     bestSentenceLocation = {}
     Location = 0
-    matchingNer = set{}
+    matchingNer = set()
     for question in questions:
         for subQuestion in question.subQuestions:
             for story in stories:
