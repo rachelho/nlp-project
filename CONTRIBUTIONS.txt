@@ -1,0 +1,12 @@
+Functionality: 
+
+Tory: Worked on the story side. 
+This includes parsing the story and formatting it in order to extract useful information for the potential answer phrases.
+Also currently working on training the models in trainQA.py which will be incorporated later.
+
+Rachel: Worked on the question side. 
+This includes parsing the questions and formatting them in order to give each questions its classification.
+Also worked on the Overlap and NER methods.
+
+Aside from the trainQA.py which is from Tory, all the source code we are currently using is in qa.py.
+The other "qa" files are our trial and errors. testrun.txt was for testing with the given file input format.
