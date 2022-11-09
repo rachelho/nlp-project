@@ -32,25 +32,39 @@ class Story():
             stop = stopwords.words('english')
             punctuation = ['?','.',',','!',':',";",'"',"'", '``', "'s"]
             
-            for token in self.sentences:
-                # Grab the story information
-                if token.startswith("HEADLINE:"):
-                    lines = token.split('\n')
-                    for line in lines:
-                        if line.startswith("HEADLINE:"):
-                            self.headline = line.lstrip("HEADLINE: ")
+            lines = self.story.split('\n')
+            for idx in range(0, len(lines)):
+                line = lines[idx]
+                if line.startswith("HEADLINE:"):
+                    self.headline = line.lstrip("HEADLINE: ")
                             
-                        elif line.startswith("DATE: "):
-                            self.date = line.lstrip("DATE:")
-                            
-                        elif line.startswith("STORYID: "):
-                            self.storyID = line.lstrip("STORYID: ")
+                elif line.startswith("DATE: "):
+                    self.date = line.lstrip("DATE:")
                         
-                        elif line.startswith("TEXT:"):
-                             break
-                
-                else:
+                elif line.startswith("STORYID: "):
+                    self.storyID = line.lstrip("STORYID: ")
+                        
+                elif line.startswith("TEXT:"):
                     break
+            # for token in self.sentences:
+            #     # Grab the story information
+            #     if token.startswith("HEADLINE:"):
+            #         lines = token.split('\n')
+            #         for line in lines:
+            #             if line.startswith("HEADLINE:"):
+            #                 self.headline = line.lstrip("HEADLINE: ")
+                            
+            #             elif line.startswith("DATE: "):
+            #                 self.date = line.lstrip("DATE:")
+                            
+            #             elif line.startswith("STORYID: "):
+            #                 self.storyID = line.lstrip("STORYID: ")
+                        
+            #             elif line.startswith("TEXT:"):
+            #                  break
+                
+                # else:
+                #     break
         
             # Need to remove the Headline, Date, etc. from the first sentence
             firstSentence = word_tokenize(self.sentences[0])
