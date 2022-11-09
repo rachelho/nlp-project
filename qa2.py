@@ -22,7 +22,7 @@ class Story():
         def __init__(self, story):
             
             self.story = story.strip() # Full story
-            self.sentences = sent_tokenize(story) # Each sentence of the story normalized
+            # self.sentences = sent_tokenize(story) # Each sentence of the story normalized
             self.pos = [] # List of a list of tuples containing each word and POS tag (stop words not included)
             self.lemma = [] # List of lemmatized sentences (stop words not included)
             self.ner = [] # List of a list of tuples for each NER in the question 
@@ -36,14 +36,11 @@ class Story():
             for idx in range(0, len(lines)):
                 line = lines[idx]
                 if line.startswith("HEADLINE:"):
-                    self.headline = line.lstrip("HEADLINE: ")
-                            
-                elif line.startswith("DATE: "):
+                    self.headline = line.lstrip("HEADLINE: ")          
+                elif line.startswith("DATE:"):
                     self.date = line.lstrip("DATE:")
-                        
-                elif line.startswith("STORYID: "):
+                elif line.startswith("STORYID:"):
                     self.storyID = line.lstrip("STORYID: ")
-                        
                 elif line.startswith("TEXT:"):
                     break
             # for token in self.sentences:
@@ -67,27 +64,14 @@ class Story():
                 #     break
         
             # Need to remove the Headline, Date, etc. from the first sentence
-            firstSentence = word_tokenize(self.sentences[0])
-            i = 0
-            
-            # Find the location of the first word after "TEXT:"
-            for token in firstSentence:
-                i += 1
-                if token.startswith("TEXT"):
-                    break
-            
-            self.sentences[0] = '' 
-            i += 1
-            
-            # Now append the sentence together
-            while i < len(firstSentence):
-                if i + 2 < len(firstSentence):
-                    self.sentences[0] += firstSentence[i] + ' '
-                    i += 1
+            story2 = ''
+            for line in lines:
+                if line.startswith("HEADLINE:") or line.startswith("DATE:") or line.startswith("DATE:") or line.startswith("STORYID:") or line.startswith("TEXT:"):
+                    continue
                 else:
-                    self.sentences[0] += firstSentence[i]
-                    i += 1
-
+                    story2 += line + ' '
+                
+            self.sentences = sent_tokenize(story2)
             
             for sentence in self.sentences:
                 # Get the named entities within each sentence
@@ -214,10 +198,10 @@ class SubQuestion():
                 posList.append(tag)
             
         # Lists of words to help identify the type of answer we are looking for
-        whoList = {'who', 'person', 'organization', 'team', 'company', 'business'}
-        whatList = {'what'}
+        whoList = {'who', 'person', 'organization', 'team', 'company', 'business', 'whose'}
+        whatList = {'what', 'name'}
         whereList = {'where', 'located', 'location', 'site', 'venue', 'locale'}
-        whenList = {'when', 'time', 'date', 'month', 'year'}
+        whenList = {'when', 'time', 'date', 'month', 'year', 'old', 'age', 'often'}
         whyList = {'why'}
         quantityList = {'big', 'small', 'far', 'many', 'distance', 'capacity', 'length', 'tall'}
         moneyList = {'much', 'cost', 'price', 'salary', 'budget', 'paid'}
@@ -235,9 +219,11 @@ class SubQuestion():
             elif word.lower() in whoList:
                 self.type.add("PERSON")
                 self.type.add("ORG")
+                self.type.add("NORP")
                 
             elif word.lower() in quantityList:
                 self.type.add('QUANTITY')
+                self.type.add('CARDINAL')
             
             elif word.lower() in moneyList:
                 self.type.add('MONEY')
@@ -251,7 +237,9 @@ class SubQuestion():
                 self.type.add('TIME')
                 
             elif word.lower() in whyList:
-                self.type.add('')
+                self.type.add('WORK_OF_ART')
+                self.type.add('PRODUCT')
+                self.type.add('ORG')
                 
         self.pos.append(posList)
         self.ner.append(nerTuple)
@@ -262,21 +250,18 @@ class SubQuestion():
 #%% Functions
 def ReadStoryFile(file, type, stories):
     '''takes a story file and parses it into a story object'''
-    try: 
-        text = open(file)
-        story = text.read()    
-        stories.append(type(story))
-    except:
-        print("Unable to locate" + file)
+
+    text = open(file)
+    story = text.read()    
+    stories.append(type(story))
+
     
 def ReadQuestionFile(file, type, questions):
     '''takes a question file and parses it into a question object'''
-    try:
-        with open(file) as qfile:
-            questionsLines = qfile.readlines()
-            questions.append(type(questionsLines))
-    except:
-        print("Unable to locate" + file)        
+    with open(file) as qfile:
+        questionsLines = qfile.readlines()
+        questions.append(type(questionsLines))
+     
         
 def ArgValidation(args):
     '''Validates that 1 and only 1 argument was passed through the command line'''
@@ -366,6 +351,14 @@ def FindAnswer(question, story, bestSentenceMatch):
             bestSentence = key
             mostNER = countOfNER[key]
     
+    # sentenceNER = []
+    # for nerList in story.ner:
+    #     for ner in nerList:
+    #         ner2 = 
+        
+    # if bestSentence == -1:
+        
+    
     # Not sure how to determine which is the best from here    
     # for sentence in validSentences:
     #     sentenceNERCount = 0
@@ -408,13 +401,13 @@ def WriteToFile(question, questionNERTag, sentence, story):
     # print(line1)
     # print(line2)
     # print(line3)
-    print(line4)
+    # print(line4)
     # print(line5)
         
     
-    # with open(fileName, 'a') as file:
-    #     file.writelines("QuestionID: " + str(qidClean) + '\n')
-    #     file.writelines("Answer: " + answer.strip() + '\n\n')
+    with open(fileName, 'a') as file:
+        file.writelines("QuestionID: " + str(qidClean) + '\n')
+        file.writelines("Answer: " + answer.strip() + '\n\n')
 
     
         
