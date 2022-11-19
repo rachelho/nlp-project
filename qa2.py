@@ -27,6 +27,7 @@ class Story():
             self.lemma = [] # List of lemmatized sentences (stop words not included)
             self.ner = [] # List of a list of tuples for each NER in the question 
             self.vocab = [] # List of words in story with frequency > 1 and stopwords removed
+            self.np = [] # List of all the noun phrases in each sentence
 
             lemmatizer = WordNetLemmatizer()
             stop = stopwords.words('english')
@@ -85,12 +86,25 @@ class Story():
                     nerTuple.append(ner)
                     
                 words = word_tokenize(sentence)
-                pos = nltk.pos_tag(words)
+                # pos = nltk.pos_tag(words)
+                # pos = 
                 posList = []
-                # Get the POS tags for each word in the sentence
-                for tag in pos:
-                    if tag[0].lower() not in stop and tag[0] not in punctuation:
-                        posList.append(tag)
+                # # Get the POS tags for each word in the sentence
+                # for tag in pos:
+                #     if tag[0].lower() not in stop and tag[0] not in punctuation:
+                #         posList.append(tag)
+                
+                for token in doc:
+                    posTuple = []
+                    # if token.text.lower() not in stop and token not in punctuation:
+                    posTuple.append(token.text)
+                    posTuple.append((token.pos_))
+                    posList.append(posTuple)
+                
+                npList = []
+                for np in doc.noun_chunks:
+                    npList.append(np.text)
+                    
                         
                 lemmaList = []
                 # Get the lemmatization of each word in the sentence
@@ -103,6 +117,7 @@ class Story():
                 self.lemma.append(lemmaList)        
                 self.pos.append(posList)
                 self.ner.append(nerTuple)
+                self.np.append(npList)
             
             frequency = collections.Counter(self.vocab)
             frequencyKeys = list(frequency.keys())
@@ -188,14 +203,14 @@ class SubQuestion():
             ner.append(ent.text.strip())
             ner.append(ent.label_.strip())
             nerTuple.append(ner)
-                
-        words = word_tokenize(self.question)
-        pos = nltk.pos_tag(words)
         posList = []
-        # Get POS tags for each word in the question
-        for tag in pos:
-            if tag[0] not in stop and tag[0] not in punctuation:
-                posList.append(tag)
+        words = word_tokenize(self.question)
+        for token in doc:
+            posTuple = []
+            # if token.text.lower() not in stop and token not in punctuation:
+            posTuple.append(token.text)
+            posTuple.append((token.pos_))
+            posList.append(posTuple)
             
         # Lists of words to help identify the type of answer we are looking for
         whoList = {'who', 'person', 'organization', 'team', 'company', 'business', 'whose'}
