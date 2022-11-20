@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 @author(s): Tory Leavitt and Rachel Ho
 """
@@ -12,6 +11,7 @@ import collections
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+from re import search
 
 
 NER = spacy.load("en_core_web_trf")
@@ -28,6 +28,8 @@ class Story():
             self.ner = [] # List of a list of tuples for each NER in the question 
             self.vocab = [] # List of words in story with frequency > 1 and stopwords removed
             self.np = [] # List of all the noun phrases in each sentence
+            self.spacyLemma = [] # compare spacy lemma to NLTK lemma
+            self.dependencies = [] # List of all the dependencies in a sentence
 
             lemmatizer = WordNetLemmatizer()
             stop = stopwords.words('english')
@@ -44,25 +46,6 @@ class Story():
                     self.storyID = line.lstrip("STORYID: ")
                 elif line.startswith("TEXT:"):
                     break
-            # for token in self.sentences:
-            #     # Grab the story information
-            #     if token.startswith("HEADLINE:"):
-            #         lines = token.split('\n')
-            #         for line in lines:
-            #             if line.startswith("HEADLINE:"):
-            #                 self.headline = line.lstrip("HEADLINE: ")
-                            
-            #             elif line.startswith("DATE: "):
-            #                 self.date = line.lstrip("DATE:")
-                            
-            #             elif line.startswith("STORYID: "):
-            #                 self.storyID = line.lstrip("STORYID: ")
-                        
-            #             elif line.startswith("TEXT:"):
-            #                  break
-                
-                # else:
-                #     break
         
             # Need to remove the Headline, Date, etc. from the first sentence
             story2 = ''
@@ -86,24 +69,28 @@ class Story():
                     nerTuple.append(ner)
                     
                 words = word_tokenize(sentence)
-                # pos = nltk.pos_tag(words)
-                # pos = 
                 posList = []
-                # # Get the POS tags for each word in the sentence
-                # for tag in pos:
-                #     if tag[0].lower() not in stop and tag[0] not in punctuation:
-                #         posList.append(tag)
+                spacyLemma = []
+                depList = []
                 
                 for token in doc:
                     posTuple = []
+                    depTuple = []
                     # if token.text.lower() not in stop and token not in punctuation:
                     posTuple.append(token.text)
                     posTuple.append((token.pos_))
                     posList.append(posTuple)
+                    spacyLemma.append(token.lemma_)
+                    depTuple.append(token.text)
+                    depTuple.append(token.dep_)
+                    depList.append(depTuple)
                 
                 npList = []
                 for np in doc.noun_chunks:
-                    npList.append(np.text)
+                    npTuple = []
+                    npTuple.append(np.text)
+                    npTuple.append(np.start)
+                    npList.append(npTuple)
                     
                         
                 lemmaList = []
@@ -114,10 +101,12 @@ class Story():
                         lemmaList.append(lemmaWord)
                         self.vocab.append(lemmaWord)
                 
+                self.spacyLemma.append(spacyLemma)
                 self.lemma.append(lemmaList)        
                 self.pos.append(posList)
                 self.ner.append(nerTuple)
                 self.np.append(npList)
+                self.dependencies.append(depList)
             
             frequency = collections.Counter(self.vocab)
             frequencyKeys = list(frequency.keys())
@@ -169,7 +158,9 @@ class SubQuestion():
         self.dependencies = []
         self.lemma = [] # List of lemmatized questions (stop words not included)
         self.ner = [] # List of a list of tuples for each NER in the question 
-        self.type = set() # Type of NER tag we should look for for the answer (who/what/when/where/why/how)
+        self.type = set() # who/what/when/where/why/how etc.
+        self.typeTag = set() # Type of NER tag we should look for for the answer (who/what/when/where/why/how)
+        self.spacyLemma = []
         
         lemmatizer = WordNetLemmatizer()
         stop = stopwords.words('english')
@@ -190,75 +181,127 @@ class SubQuestion():
         doc = NER(self.question)
         nesList = list(doc.ents)
         nerTuple = []
-        depTuple = []
         
         for token in doc:
-            dep = []
-            dep.append(token.text)
-            dep.append(token.dep_)
-            depTuple.append(dep)
+            depTuple = []
+            depTuple.append(token.text)
+            depTuple.append(token.dep_)
+            self.dependencies.append(depTuple)
+            posTuple = []
+            # if token.text.lower() not in stop and token not in punctuation:
+            posTuple.append(token.text)
+            posTuple.append((token.pos_))
+            self.pos.append(posTuple)
+            self.spacyLemma.append(token.lemma_)
             
         for ent in nesList:
             ner = []
             ner.append(ent.text.strip())
             ner.append(ent.label_.strip())
             nerTuple.append(ner)
-        posList = []
+                
         words = word_tokenize(self.question)
-        for token in doc:
-            posTuple = []
-            # if token.text.lower() not in stop and token not in punctuation:
-            posTuple.append(token.text)
-            posTuple.append((token.pos_))
-            posList.append(posTuple)
             
         # Lists of words to help identify the type of answer we are looking for
-        whoList = {'who', 'person', 'organization', 'team', 'company', 'business', 'whose'}
-        whatList = {'what', 'name'}
-        whereList = {'where', 'located', 'location', 'site', 'venue', 'locale'}
-        whenList = {'when', 'time', 'date', 'month', 'year', 'old', 'age', 'often'}
-        whyList = {'why'}
-        quantityList = {'big', 'small', 'far', 'many', 'distance', 'capacity', 'length', 'tall'}
-        moneyList = {'much', 'cost', 'price', 'salary', 'budget', 'paid'}
+        # whoList = {'who', 'person', 'organization', 'team', 'company', 'business', 'whose'}
+        # whatList = {'what', 'name'}
+        # whereList = {'where', 'located', 'location', 'site', 'venue', 'locale'}
+        # whenList = {'when', 'time', 'date', 'month', 'year', 'old', 'age', 'often'}
+        # whyList = {'why'}
+        # quantityList = {'big', 'small', 'far', 'many', 'distance', 'capacity', 'length', 'tall'}
+        # moneyList = {'much', 'cost', 'price', 'salary', 'budget', 'paid'}
             
         for word in words:
             # Lemmatize each word in the question for later comparisons in overlap
             if word not in stop and word not in punctuation:
                 lemmaWord = lemmatizer.lemmatize(word).lower()
                 self.lemma.append(lemmaWord)
-                
-            # Get the possible NER tags we should look for in the answer
-            if word.lower() in whereList:
-                self.type.add('GPE')
-                    
-            elif word.lower() in whoList:
-                self.type.add("PERSON")
-                self.type.add("ORG")
-                self.type.add("NORP")
-                
-            elif word.lower() in quantityList:
-                self.type.add('QUANTITY')
-                self.type.add('CARDINAL')
-            
-            elif word.lower() in moneyList:
-                self.type.add('MONEY')
-                
-            elif word.lower() in whatList:
-                self.type.add('PRODUCT')
-                self.type.add('PERCENTAGE')
-                    
-            elif word.lower() in whenList:
-                self.type.add('DATE')
-                self.type.add('TIME')
-                
-            elif word.lower() in whyList:
-                self.type.add('WORK_OF_ART')
-                self.type.add('PRODUCT')
-                self.type.add('ORG')
-                
-        self.pos.append(posList)
+        question = self.question.lower()
+        regex = re.compile("who is|who was|whose|who")
+        if search(regex, question):
+            self.type = 'who'
+            self.typeTag.add("PERSON")
+            self.typeTag.add("ORG")
+            self.typeTag.add("NORP")
+        
+        regex = re.compile("what is|what was|what did|what are|what does")
+        if search(regex, question):
+            self.type = "what"
+            self.typeTag.add('PRODUCT')
+        
+        regex = re.compile("when did|when is|when was|how often|what time|what date")
+        if search(regex, question):
+            self.type = 'when'
+            self.typeTag.add('DATE')
+            self.typeTag.add('TIME')
+        
+        regex = re.compile("where is|where was|where did")
+        if search(regex,question):
+            self.type = 'where'
+            self.typeTag.add('GPE')
+            self.typeTag.add('LOC')
+        
+        regex = re.compile("why does|why did|why was") # Need to figure out what NER belongs in here
+        if search(regex,question):
+            self.type = "why"
+        
+        regex = re.compile("how big|how many|how much|how far|how close")
+        if search(regex,question):    
+            self.type = "how"
+            self.typeTag.add('QUANTITY')
+            self.typeTag.add('TIME')
+        
+        #More specific types to narrow down if possible
+        regex = re.compile("cost|price|budget|salary|paid")
+        if search(regex,question):
+            self.type = "how much"
+            self.typeTag.clear()
+            self.typeTag.add(self.typeTag.add('MONEY'))
+        
+        regex = re.compile("how old|age")
+        if search(regex,question):
+            self.type = "how old"
+            self.typeTag.clear()
+            self.typeTag.add(self.typeTag.add('DATE'))
+        
+        regex = re.compile("person")
+        if search(regex,question):
+            self.type = 'who'
+            self.typeTag.clear()
+            self.typeTag.add("PERSON")
+        
+        regex = re.compile("company|organization")
+        if search(regex,question):
+            self.type = 'who'
+            self.typeTag.clear()
+            self.typeTag.add("ORG")
+            self.typeTag.add("NORP")
+        
+        regex = re.compile("country|state|city|province")
+        if search(regex,question):
+            self.type = 'where'
+            self.typeTag.clear()
+            self.typeTag.add('GPE')
+        
+        regex = re.compile("percent|%")
+        if search(regex,question):
+            self.type = 'what'
+            self.typeTag.clear()
+            self.typeTag.add("PERCENT")
+        
+        regex = re.compile("language")
+        if search(regex,question):
+            self.type = "what"
+            self.typeTag.clear()
+            self.typeTag.add("LANGUAGE")
+        
+        regex = re.compile("what type")
+        if search(regex,question):
+            self.type = "what type"
+            self.typeTag.clear()
+            self.typeTag.add("NONE")        
+
         self.ner.append(nerTuple)
-        self.dependencies.append(depTuple)
 
         return
         
@@ -300,7 +343,7 @@ def Overlap(story, question, bestSentenceMatch, bestSentenceLocation, matchingNE
     location = 0 # Tells us which element in the story.sentences
     for sentence in matchingNERSentences:
         # Get the words in common between both sentence and question
-        overlap = list(set(question.lemma) & set(story.lemma[sentence]))
+        overlap = list(set(question.spacyLemma) & set(story.spacyLemma[sentence]))
         
         # Append the overlap to the dictionary
         if len(overlap) in bestSentenceMatch.keys():
@@ -319,7 +362,7 @@ def Overlap(story, question, bestSentenceMatch, bestSentenceLocation, matchingNE
 def MatchingNER(story, question):
     '''Takes a story and the question and gets the sentences containing the right NER tag'''
     location = 0 # Tells us which element in the story.sentences
-    questionType = question.type
+    questionType = question.typeTag
     possibleSentences = set()
     
     for nerType in story.ner:
@@ -333,7 +376,7 @@ def MatchingNER(story, question):
 def FindAnswer(question, story, bestSentenceMatch):
     '''Find the best answer based on overlap and type of question. Then print the answer to the output file'''
     
-    questionNERTag = list(question.type)
+    questionNERTag = list(question.typeTag)
     validSentences = []
     foundSentence = False
     # Iterate though the overlaps, high to low, until we find the correct NER tag
@@ -361,34 +404,71 @@ def FindAnswer(question, story, bestSentenceMatch):
     countOfNER = collections.Counter(validSentences)
     sentenceKeys = countOfNER.keys()
     mostNER = 0
+    
     for key in sentenceKeys:
         if countOfNER[key] > mostNER:
             bestSentence = key
             mostNER = countOfNER[key]
-    
-    # sentenceNER = []
-    # for nerList in story.ner:
-    #     for ner in nerList:
-    #         ner2 = 
-        
-    # if bestSentence == -1:
-        
-    
-    # Not sure how to determine which is the best from here    
-    # for sentence in validSentences:
-    #     sentenceNERCount = 0
-    #     for ner in story.ner[sentence]:
-    #         if ner[1] in questionNERTag:
-    #             sentenceNERCount += 1
-        
-    #     if sentenceNERCount > highCount:
-    #         highCount = sentenceNERCount
-    #         bestSentence = sentence
                 
     WriteToFile(question, questionNERTag, bestSentence, story)            
     
     return
-
+def DirectMatch(question, story):
+    
+    question1 = question.question
+    lemmatizer = WordNetLemmatizer()
+    answer = ''
+    possibleSentence = -1
+    
+    #Use lemma to look for direct match on ROOT for what questions
+    # if question.type == "what":
+    #     root = ''
+        
+    #     for i in range(len(question.dependencies)):
+    #         if question.dependencies[i][1] == 'ROOT':
+    #             root = question.spacyLemma[i]
+        
+    #     for i in range(len(story.sentences)):
+    #         if root in story.spacyLemma[i]:
+    #             possibleSentence = i
+    #             break
+        
+    #     location = -1
+    #     for word in story.spacyLemma[possibleSentence]:
+    #         if word != root:
+    #             location += 1
+    #         else:
+    #             location += 1
+    #             break
+    #     minDistance = 99999
+    #     for np in story.np[possibleSentence]:
+    #         if (abs(int(np[1]) - location)) < minDistance:
+    #             minDistance = abs(int(np[1]) - location)
+    #             answer = np[0]
+    
+    # if question.type == 'why':
+    root = ''
+    for i in range(len(question.dependencies)):
+        if question.dependencies[i][1] == 'ROOT':
+            root = question.spacyLemma[i]
+        
+    for i in range(len(story.sentences)):
+        if root in story.spacyLemma[i]:
+            possibleSentence = i
+            break
+        
+    # for dependency in story.dependencies[possibleSentence]:
+    #     if dependency[1] == 'nsubj':
+    #         answer = dependency[0]
+    #         break
+        
+    regex = re.compile(answer)    
+        # Look for a noun phrase containing the answer
+    for np in story.np[possibleSentence]:
+        words = np[0]
+        answer += ' ' + words
+    
+    return answer
 def WriteToFile(question, questionNERTag, sentence, story):
     '''Writes the answers to the output in the correct format'''
     # For now I am just print I will work on writing to file later
@@ -401,6 +481,10 @@ def WriteToFile(question, questionNERTag, sentence, story):
         for tag in story.ner[sentence]:
             if tag[1] in questionNERTag:
                 answer += tag[0] + ' '
+                
+    if answer == '':
+        answer = DirectMatch(question, story)
+        
     qid = str(question.questionid).strip()
     qidClean = qid[2:-2]
     line1 = "QuestionID: " + str(qidClean)
@@ -410,7 +494,7 @@ def WriteToFile(question, questionNERTag, sentence, story):
     line5 = "Sentence w/ answer: " +  story.sentences[sentence] + '\n'
     
     #redirect print to answer file, be sure to remove this if you want to print other things
-    fileName = 'Soutions.response'
+    fileName = 'Solutions.response'
     writeOrAppend = ''
 
     # print(line1)
