@@ -494,7 +494,7 @@ def WriteToFile(question, questionNERTag, sentence, story):
     line5 = "Sentence w/ answer: " +  story.sentences[sentence] + '\n'
     
     #redirect print to answer file, be sure to remove this if you want to print other things
-    fileName = 'Solutions.response'
+    fileName = 'SolutionsOG.response'
     writeOrAppend = ''
 
     # print(line1)
@@ -506,7 +506,9 @@ def WriteToFile(question, questionNERTag, sentence, story):
     
     with open(fileName, 'a') as file:
         file.writelines("QuestionID: " + str(qidClean) + '\n')
-        file.writelines("Answer: " + answer.strip() + '\n\n')
+        file.writelines("Question: " + str(line2) + '\n')
+        file.writelines("Answer: " + answer.strip() + '\n')
+        file.writelines("from sentence: " + line5 + '\n\n')
 
     
         
